@@ -40,7 +40,30 @@ The CRO commissioned an independent review to answer three questions:
 
 ![Portfolio Overview](screenshots/01_portfolio_overview.png.png)
 ---
+## Power BI Phase — Dashboard Pages
+## Dashboard Gallery
 
+### 1. Portfolio Overview
+
+![Portfolio Overview](screenshots/01_portfolio_overview.png.png)
+
+### 2. Credit Score Model Integrity
+
+![Credit Score Model Integrity](screenshots/02_h1_credit_score.png.png)
+
+### 3. Regional Rate Mispricing
+
+![Regional Rate Mispricing](screenshots/03_h2_rate_mispricing.png.png)
+
+### 4. Hidden Stress Exposure
+
+![Hidden Stress Exposure](screenshots/04_h3_stress_exposure.png.png)
+
+### 5. Executive Summary
+
+![Executive Summary](screenshots/05_executive_summary.png.png)
+
+---
 ## Portfolio KPIs
 
 | Metric | Value |
