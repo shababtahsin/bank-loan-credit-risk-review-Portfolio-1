@@ -10,11 +10,9 @@ An independent credit risk review commissioned to interrogate the 2019 loan port
 
 This project replicates the structure of a Big 4 consulting risk engagement — every cleaning decision is documented, every query is hypothesis-mapped, and findings are delivered through a boardroom-ready executive summary.
 
-## Dashboard Preview
 
-![Portfolio Overview](screenshots/01_portfolio_overview.png.png)
 
----
+ 
 ---
 
 ## Business Problem
@@ -37,6 +35,10 @@ The CRO commissioned an independent review to answer three questions:
 | H2 | ✅ CONFIRMED | South region charged the **cheapest rate (4.04%)** but carries the **second highest default rate (26.63%)** — 4.12pp above the safest region North (22.51%). Risk is systematically underpriced. |
 | H3 | ✅ CONFIRMED | Default rate explodes past 100% LTV — **80.59%** at 100-120% LTV and **99.93%** above 120%. A 10% income shock puts **$7.06B** of currently performing loans at risk of breaching 50% DTI. |
 
+---
+## Dashboard Preview
+
+![Portfolio Overview](screenshots/01_portfolio_overview.png.png)
 ---
 
 ## Portfolio KPIs
