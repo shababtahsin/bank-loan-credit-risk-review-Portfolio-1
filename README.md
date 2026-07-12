@@ -146,6 +146,60 @@ The SQL script (`Phase2_SQL_Analysis.sql`) is structured as a complete, reproduc
 7. **2 Reusable Views** — `vw_CreditScoreModelIntegrity` (H1), `vw_RegionalPricingRisk` (H2)
 8. **Executive Stored Procedure** — `usp_ExecutiveRiskBriefing` — one call returns verdicts on all 3 hypotheses with income shock simulation
 
+## SQL Data Pipeline & Analysis
+
+The T-SQL script forms a complete, reproducible audit-to-insight pipeline across **148,670 loans and 34 source columns**.
+
+### Data Ingestion & Audit
+
+- Creates the dedicated `BankLoanCreditRisk` database.
+- Builds `dbo.Raw_LoanData` as a 1:1 staging table, preserving the original data for auditability.
+- Uses `BULK INSERT` to load all 148,670 records.
+- Performs pre-cleaning checks covering nulls, categorical consistency and row-count reconciliation.
+
+### Data Cleaning & Feature Engineering
+
+- Standardises regional naming and replaces missing `loan_limit` values with `Unknown`.
+- Imputes missing loan terms using the mode.
+- Imputes missing property values and income using regional medians calculated with `PERCENTILE_CONT`.
+- Recalculates loan-to-value using cleaned property values and `NULLIF` protection.
+- Flags implausible LTV values above 150% using `LTV_reliability_flag`.
+- Creates 50-point credit-score bands and 20-point LTV bands for risk segmentation.
+- Runs post-cleaning validation to confirm imputation, derived fields and population totals.
+
+### Hypothesis-Driven SQL Analysis
+
+| Hypothesis | SQL Analysis |
+|---|---|
+| H1 — Credit Score Model Integrity | Default rate by score band, risk ranking using `ROW_NUMBER()`, and flat-curve testing using spread and `STDEV` |
+| H2 — Regional Rate Mispricing | Interest rate by region and score band, regional default comparison, benchmark-gap analysis using CTEs, and small-sample warnings |
+| H3 — Hidden Stress Exposure | Default rate and loss exposure by LTV band, plus high-LTV and low-income segmentation using `NTILE(4)` income quartiles |
+
+### Advanced SQL Techniques Demonstrated
+
+- **CTEs and subqueries** for benchmark and segmented analysis.
+- **Window functions:** `ROW_NUMBER`, `NTILE` and `SUM() OVER()`.
+- **Statistical functions:** `PERCENTILE_CONT` and `STDEV`.
+- **Conditional aggregation:** `CASE WHEN`, grouped KPIs and portfolio-percentage calculations.
+- **Defensive SQL:** `ISNULL`, `NULLIF`, explicit casting and verification queries.
+- **Automated decision logic:** `CASE` and `EXISTS` statements that return hypothesis verdicts.
+
+### Production SQL Objects
+
+| Object | Purpose |
+|---|---|
+| `vw_CreditScoreModelIntegrity` | Reusable monitoring view for score-band default rates, pricing and risk ranking |
+| `vw_RegionalPricingRisk` | Regional pricing-risk view containing portfolio benchmarks and sample-size warnings |
+| `usp_ExecutiveRiskBriefing` | Parameterised procedure returning the portfolio overview, H1–H3 evidence, stress simulation and automated verdicts |
+
+### Executive Risk Procedure
+
+The stored procedure accepts an income-shock percentage and returns eight result sets covering the portfolio overview, all three hypotheses and the resulting DTI stress exposure.
+
+```sql
+EXEC dbo.usp_ExecutiveRiskBriefing @IncomeShockPct = 10.00;
+
+
 ---
 
 ## Power BI Phase — Dashboard Pages
