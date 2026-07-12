@@ -40,19 +40,19 @@ The CRO commissioned an independent review to answer three questions:
 
 
 ---
-## Power BI Phase — Dashboard Pages
+ 
 ## Dashboard Gallery
 
 ### 1. Portfolio Overview
 
-![Portfolio Overview](screenshots/01_portfolio_overview.png.png)
+![Portfolio Overview](screenshots/01_portfolio_overview.png)
 
 What this dashboard establishes: the baseline. 148.67K loans, a 24.64% default rate, $12B in exposure, and an average credit score of 699.79 — a portfolio that looks unremarkable at face value. The regional split is heavily skewed: North (75K) and South (64K) carry 94% of loan volume between them, while Central (9K) and North-East (1K) are minor. Loan purpose is dominated by two categories (p3 at 37.6%, p4 at 36.9%), with p1 and p2 making up the remainder.
 Why it matters: this page exists to be disagreed with. A 24.64% default rate and a 699 average score read as "normal mortgage book" to anyone skimming the top line. The next three pages exist specifically to show that headline is hiding three separate structural problems.
 
 ### 2. Credit Score Model Integrity
 
-![Credit Score Model Integrity](screenshots/02_h1_credit_score.png.png)
+![Credit Score Model Integrity](screenshots/02_h1_credit_score.png)
 
 
 What this dashboard shows: default rate broken out across eight 50-point credit score bands. If the scoring model worked, this should fall in a clean staircase — lowest scores defaulting most, highest scores defaulting least. It doesn't. The bars are essentially flat: 24.06% at the best-performing band up to 25.31% at the worst — a spread of just 1.25 percentage points across the entire 400-point range. Worse, the 850-900 band (the "best" borrowers on paper) has the highest default rate of all eight bands.
@@ -60,7 +60,7 @@ Why it matters: a working credit score model should produce a spread of 20–40 
 
 ### 3. Regional Rate Mispricing
 
-![Regional Rate Mispricing](screenshots/03_h2_rate_mispricing.png.png)
+![Regional Rate Mispricing](screenshots/03_h2_rate_mispricing.png)
 
 What this dashboard shows: average interest rate vs actual default rate by region. Rates are compressed and nearly identical (4.04%–4.10%). Default rates are not (22.51% North, up to 30.45% North-East). South is charged the cheapest rate (4.04%) despite carrying meaningfully higher default risk (26.63%) than North (22.51%) — a 4.12pp gap the pricing doesn't reflect.
 Why it matters: South is 64,016 loans — 43% of the portfolio, not an edge case. The bank is under-compensated for risk on nearly half its book. North-East (1,235 loans, 0.83%) is flagged separately as too small a sample to act on.
@@ -68,7 +68,7 @@ Why it matters: South is 64,016 loans — 43% of the portfolio, not an edge case
 
 ### 4. Hidden Stress Exposure
 
-![Hidden Stress Exposure](screenshots/04_h3_stress_exposure.png.png)
+![Hidden Stress Exposure](screenshots/04_h3_stress_exposure.png)
 
 What this dashboard shows: default rate and loss exposure by LTV band, plus an income-shock simulator. Default rate climbs from 17–35% in normal LTV ranges to 80.69% at 100–120% LTV and 99.9% above 120%. The biggest dollar concentration isn't even in the extreme bands — it's $3.6B sitting in the 80–100% LTV band. A 10% income shock puts 21,269 currently-performing loans ($7.06B) at risk of breaching DTI.
 Why it matters: the 80–100% LTV band looks "fine" on default rate alone (22.6%, near portfolio average) but is the single largest loss concentration in dollars — exactly what a headline metric hides.
@@ -76,7 +76,7 @@ Why it matters: the 80–100% LTV band looks "fine" on default rate alone (22.6%
 
 ### 5. Executive Summary
 
-![Executive Summary](screenshots/05_executive_summary.png.png)
+![Executive Summary](screenshots/05_executive_summary.png)
 
 What this page shows: the whole engagement on one slide — three verdicts, three actions, key numbers, absorbable in under a minute.
 Why it matters: the three findings compound into one story: the credit model can't tell good borrowers from bad, so pricing isn't risk-adjusted, and the riskiest loans are hiding in a normal-looking average. That's a Board-level finding, not three separate data quality notes.
