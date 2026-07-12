@@ -56,7 +56,7 @@ Why it matters: this page exists to be disagreed with. A 24.64% default rate and
 
 
 What this dashboard shows: default rate broken out across eight 50-point credit score bands. If the scoring model worked, this should fall in a clean staircase — lowest scores defaulting most, highest scores defaulting least. It doesn't. The bars are essentially flat: 24.06% at the best-performing band up to 25.31% at the worst — a spread of just 1.25 percentage points across the entire 400-point range. Worse, the 850-900 band (the "best" borrowers on paper) has the highest default rate of all eight bands.
-Why it matters: a working credit score model should produce a spread of 20–40 percentage points. A 1.25pp spread means the score is noise, not signal — every risk-based pricing decision built on it is currently arbitrary.
+Why it matters: A useful credit score model should produce materially clearer separation in default risk across score bands. A 1.25pp spread means the score is noise, not signal — every risk-based pricing decision built on it is currently arbitrary.
 
 ### 3. Regional Rate Mispricing
 
