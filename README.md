@@ -132,5 +132,5 @@ The SQL script (`Phase2_SQL_Analysis.sql`) is structured as a complete, reproduc
 ## Author
 
 **Shabab Tahsin**
-Data Analyst | SQL · Power BI · Python
+Business Data Analyst | SQL · Power BI · Python
 [GitHub](https://github.com/shababtahsin)
