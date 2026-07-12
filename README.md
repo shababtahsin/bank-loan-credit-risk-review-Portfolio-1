@@ -195,9 +195,9 @@ The T-SQL script forms a complete, reproducible audit-to-insight pipeline across
 ### Executive Risk Procedure
 
 The stored procedure accepts an income-shock percentage and returns eight result sets covering the portfolio overview, all three hypotheses and the resulting DTI stress exposure.
-
-```sql
 EXEC dbo.usp_ExecutiveRiskBriefing @IncomeShockPct = 10.00;
+```sql
+
 
 
 ---
