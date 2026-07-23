@@ -82,6 +82,16 @@ What this page shows: the whole engagement on one slide — three verdicts, thre
 Why it matters: the three findings compound into one story: the credit model can't tell good borrowers from bad, so pricing isn't risk-adjusted, and the riskiest loans are hiding in a normal-looking average. That's a Board-level finding, not three separate data quality notes.
 
 ---
+---
+
+## Power BI Data Model
+
+![Power BI Star Schema](screenshots/06_powerbi_data_model.png.png)
+
+This star-schema model connects the central loan dataset to supporting dimension tables, enabling consistent filtering and analysis across the five-page Power BI dashboard.
+
+---
+
 ## Portfolio KPIs
 
 | Metric | Value |
