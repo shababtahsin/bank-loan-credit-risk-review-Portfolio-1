@@ -30,9 +30,9 @@ The analysis focused on three questions:
 
 | Hypothesis | Result | Evidence |
 |---|---|---|
-| H1 | ✅ SUPPORTED | Default rates vary by only **1.25 percentage points** across a 400-point credit score range. The 850–900 score band records a **25.31%** default rate, compared with **24.55%** for the 500–549 band. Credit score bands show very little separation in observed default risk. |
-| H2 | ✅ SUPPORTED | South has the **lowest average interest rate (4.04%)** but a **26.63% default rate**, 4.12 percentage points above North at 22.51%. The observed pricing does not appear closely aligned with regional default risk. |
-| H3 | ✅ SUPPORTED | Default rates rise sharply above 100% LTV — **80.59%** at 100–120% LTV and **99.93%** above 120%. Under a 10% income-shock scenario, **$7.06B** of currently performing loans would move above a 50% DTI threshold. |
+| H1 — Higher credit scores are associated with lower default rates | ❌ NOT SUPPORTED | Default rates vary by only **1.25 percentage points** across a 400-point credit score range. The 850–900 score band records a **25.31%** default rate, compared with **24.55%** for the 500–549 band. Credit score bands show very little separation in observed default risk. |
+| H2 — Regional pricing is misaligned with observed default risk | ✅ SUPPORTED | South has the **lowest average interest rate (4.04%)** but a **26.63% default rate**, 4.12 percentage points above North at 22.51%. The observed pricing does not appear closely aligned with regional default risk. |
+| H3 — High-LTV borrowers contain hidden stress exposure | ✅ SUPPORTED | Default rates rise sharply above 100% LTV — **80.59%** at 100–120% LTV and **99.93%** above 120%. Under a 10% income-shock scenario, **$7.06B** of currently performing loans would move above a 50% DTI threshold. |
 
 ---
 
