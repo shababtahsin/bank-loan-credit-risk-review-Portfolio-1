@@ -108,19 +108,99 @@ This shows why looking only at the headline default rate can miss important conc
 
 ---
 
-### 5. Executive Summary
+## 🧭 Executive Summary — Credit Risk Review
 
-![Executive Summary](screenshots/05_executive_summary.png.png)
+> **2019 Mortgage Portfolio · 148,670 Loans · 24.64% Default Rate · $11.7B Defaulted-Loan Exposure**
 
-The final page brings the three findings together.
+The analysis tested three areas of portfolio risk: **credit-score separation, regional pricing alignment, and high-LTV stress exposure**.
 
-The portfolio shows three connected issues:
+---
 
-- credit score bands provide very little separation in observed default rates,
-- regional interest rates do not closely track regional default risk,
-- and significant risk is concentrated in higher-LTV borrowers.
+### 🔴 H1 — Credit Score Risk Separation
 
-Together, these findings suggest that the portfolio would benefit from a closer review of **risk segmentation, pricing and high-LTV exposure**.
+![H1](https://img.shields.io/badge/H1-NOT%20SUPPORTED-red)
+
+**Higher credit scores did not correspond with meaningfully lower default rates.**
+
+- Default-rate spread across the full 500–900 score range: **1.25 percentage points**
+- **850–900 score:** 25.31% default
+- **500–549 score:** 24.55% default
+- The highest score band actually recorded a slightly **higher** default rate than the lowest score band
+
+📌 **Finding:** Credit score provided very little separation between lower- and higher-default groups in this portfolio.
+
+💡 **Recommended Review:** Test whether additional borrower and loan characteristics could improve risk segmentation.
+
+---
+
+### 🟠 H2 — Regional Pricing Alignment
+
+![H2](https://img.shields.io/badge/H2-NOT%20SUPPORTED-orange)
+
+**Interest rates did not closely track observed regional default risk.**
+
+- **South average rate:** 4.04%
+- **South default rate:** 26.63%
+- **North default rate:** 22.51%
+- South therefore defaulted **4.12 percentage points more** than North while receiving a slightly lower average rate
+
+📌 **Finding:** Regional pricing appears weakly aligned with observed default risk.
+
+💡 **Recommended Review:** Perform a fuller risk-adjusted pricing analysis before making regional pricing changes.
+
+---
+
+### 🟢 H3 — High-LTV Stress Exposure
+
+![H3](https://img.shields.io/badge/H3-SUPPORTED-brightgreen)
+
+**Default risk increased sharply once LTV moved above 100%.**
+
+- **100–120% LTV:** 80.59% default
+- **Above 120% LTV:** 99.93% default
+- **80–100% LTV:** approximately $3.69B in defaulted-loan exposure
+- Under a **10% income shock**, 21,269 currently performing loans representing approximately **$7.06B in exposure** would move above a 50% DTI threshold
+
+📌 **Finding:** Very high-LTV borrowers show substantial stress compared with the overall portfolio.
+
+💡 **Recommended Review:** Increase monitoring of high-LTV loans and perform further stress testing.
+
+---
+
+## 📊 Key Numbers at a Glance
+
+| Metric | Result |
+|---|---:|
+| 🏦 Loans Reviewed | **148,670** |
+| 📉 Portfolio Default Rate | **24.64%** |
+| 💰 Defaulted-Loan Exposure | **$11.7B** |
+| 🎯 Average Credit Score | **699** |
+| 📏 H1 Default-Rate Spread | **1.25pp** |
+| 🌎 South vs North Default Gap | **4.12pp** |
+| ⚠️ 100–120% LTV Default Rate | **80.59%** |
+| 🚨 >120% LTV Default Rate | **99.93%** |
+| 🧪 Exposure Breaching 50% DTI Under 10% Income Shock | **$7.06B** |
+
+> **Note:** Defaulted-loan exposure represents the loan amount associated with loans marked as defaulted. It is not the same as realised accounting loss because recovery and loss-given-default data are not available.
+
+---
+
+## 🎯 Overall Assessment
+
+The portfolio shows **three important risk patterns**:
+
+🔴 **Credit scores provide very little separation in observed default rates.**  
+🟠 **Regional interest rates do not closely align with observed regional default risk.**  
+🟢 **Default rates rise dramatically once LTV exceeds 100%.**
+
+Together, the findings suggest that **credit-risk segmentation, regional pricing alignment, and high-LTV exposure should be reviewed together rather than treated as separate issues.**
+
+---
+
+### 👤 Prepared by
+
+**Shah Tahsin**  
+*Business Data Analyst · SQL · Power BI*
 
 ---
 
