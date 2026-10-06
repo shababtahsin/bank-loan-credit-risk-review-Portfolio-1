@@ -6,89 +6,113 @@
 
 ## Project Overview
 
-An independent credit risk review commissioned to interrogate the 2019 loan portfolio of a mortgage bank across **148,670 loans** and **$11.7B in total loss exposure**. The analysis tests three hypotheses using SQL Server for data engineering and analysis, and Power BI for a 5-page executive dashboard.
+This project reviews a 2019 mortgage loan portfolio containing **148,670 loans** and approximately **$11.7B in total exposure**.
 
-This project replicates the structure of a Big 4 consulting risk engagement — every cleaning decision is documented, every query is hypothesis-mapped, and findings are delivered through a boardroom-ready executive summary.
+The aim was to look beyond the headline portfolio numbers and investigate three areas of credit risk: whether credit scores were separating higher-risk borrowers, whether interest rates were aligned with regional default risk, and whether high-LTV borrowers were creating hidden stress in the portfolio.
 
+I used **SQL Server** for data cleaning, validation and analysis, then built a **5-page Power BI dashboard** to present the main findings.
 
-
- 
 ---
 
 ## Business Problem
 
-The CRO commissioned an independent review to answer three questions:
+The analysis focused on three questions:
 
 | # | Hypothesis | Question |
 |---|---|---|
-| H1 | Credit Scoring Model Integrity | Is the credit scoring model actually predicting default — or are high-score borrowers defaulting at the same rate as low-score ones? |
-| H2 | Regional Rate Mispricing | Are identical-risk borrowers being charged different rates by region — and is the cheapest region actually the riskiest? |
-| H3 | Hidden Stress Exposure | Are high-LTV, low-income borrowers carrying disproportionate default risk invisible in the headline 24.64% default rate? |
+| H1 | Credit Scoring Model Integrity | Are higher credit scores actually associated with lower default rates? |
+| H2 | Regional Rate Mispricing | Are borrowers with similar risk profiles being charged different rates across regions? |
+| H3 | Hidden Stress Exposure | Are high-LTV and lower-income borrowers carrying more risk than the overall portfolio default rate suggests? |
 
 ---
 
 ## Key Findings
 
-| Hypothesis | Verdict | Evidence |
+| Hypothesis | Result | Evidence |
 |---|---|---|
-| H1 | ✅ CONFIRMED | Default rate varies only **1.25pp** across a 400-point score range. The highest score band (850-900) defaults at **25.31%** — higher than the lowest band (500-549) at **24.55%**. Model has no predictive power. |
-| H2 | ✅ CONFIRMED | South region charged the **cheapest rate (4.04%)** but carries the **second highest default rate (26.63%)** — 4.12pp above the safest region North (22.51%). Risk is systematically underpriced. |
-| H3 | ✅ CONFIRMED | Default rate explodes past 100% LTV — **80.59%** at 100-120% LTV and **99.93%** above 120%. A 10% income shock puts **$7.06B** of currently performing loans at risk of breaching 50% DTI. |
+| H1 | ✅ SUPPORTED | Default rates vary by only **1.25 percentage points** across a 400-point credit score range. The 850–900 score band records a **25.31%** default rate, compared with **24.55%** for the 500–549 band. Credit score bands show very little separation in observed default risk. |
+| H2 | ✅ SUPPORTED | South has the **lowest average interest rate (4.04%)** but a **26.63% default rate**, 4.12 percentage points above North at 22.51%. The observed pricing does not appear closely aligned with regional default risk. |
+| H3 | ✅ SUPPORTED | Default rates rise sharply above 100% LTV — **80.59%** at 100–120% LTV and **99.93%** above 120%. Under a 10% income-shock scenario, **$7.06B** of currently performing loans would move above a 50% DTI threshold. |
 
 ---
- 
 
-
----
- 
 ## Dashboard Gallery
 
 ### 1. Portfolio Overview
 
 ![Portfolio Overview](screenshots/01_portfolio_overview.png.png)
 
-What this dashboard establishes: the baseline. 148.67K loans, a 24.64% default rate, $12B in exposure, and an average credit score of 699.79 — a portfolio that looks unremarkable at face value. The regional split is heavily skewed: North (75K) and South (64K) carry 94% of loan volume between them, while Central (9K) and North-East (1K) are minor. Loan purpose is dominated by two categories (p3 at 37.6%, p4 at 36.9%), with p1 and p2 making up the remainder.
-Why it matters: this page exists to be disagreed with. A 24.64% default rate and a 699 average score read as "normal mortgage book" to anyone skimming the top line. The next three pages exist specifically to show that headline is hiding three separate structural problems.
+This page gives the starting point for the analysis: **148.67K loans**, a **24.64% default rate**, around **$12B in exposure**, and an average credit score of **699.79**.
+
+The portfolio is heavily concentrated in North and South, which together account for around 94% of total loan volume. Loan purpose is also concentrated in categories p3 and p4.
+
+The purpose of this page is to establish the overall portfolio before looking at the risk patterns underneath the averages.
 
 ### 2. Credit Score Model Integrity
 
 ![Credit Score Model Integrity](screenshots/02_h1_credit_score.png.png)
 
+This page compares default rates across eight 50-point credit score bands.
 
-What this dashboard shows: default rate broken out across eight 50-point credit score bands. If the scoring model worked, this should fall in a clean staircase — lowest scores defaulting most, highest scores defaulting least. It doesn't. The bars are essentially flat: 24.06% at the best-performing band up to 25.31% at the worst — a spread of just 1.25 percentage points across the entire 400-point range. Worse, the 850-900 band (the "best" borrowers on paper) has the highest default rate of all eight bands.
-Why it matters: A useful credit score model should produce materially clearer separation in default risk across score bands. A 1.25pp spread means the score is noise, not signal — every risk-based pricing decision built on it is currently arbitrary.
+If credit score were strongly separating risk in this dataset, lower-score groups should generally show much higher default rates than higher-score groups. Instead, the results are almost flat.
+
+Default rates range from roughly **24.06% to 25.31%**, a spread of only **1.25 percentage points** across the full 400-point score range.
+
+The 850–900 band also records the highest default rate of the eight groups.
+
+The result suggests that credit score alone is providing very little separation between lower- and higher-default groups in this portfolio.
 
 ### 3. Regional Rate Mispricing
 
 ![Regional Rate Mispricing](screenshots/03_h2_rate_mispricing.png.png)
 
-What this dashboard shows: average interest rate vs actual default rate by region. Rates are compressed and nearly identical (4.04%–4.10%). Default rates are not (22.51% North, up to 30.45% North-East). South is charged the cheapest rate (4.04%) despite carrying meaningfully higher default risk (26.63%) than North (22.51%) — a 4.12pp gap the pricing doesn't reflect.
-Why it matters: South is 64,016 loans — 43% of the portfolio, not an edge case. The bank is under-compensated for risk on nearly half its book. North-East (1,235 loans, 0.83%) is flagged separately as too small a sample to act on.
+This page compares average interest rates with actual default rates by region.
 
+Average rates are tightly grouped between roughly **4.04% and 4.10%**, while default rates vary much more widely.
+
+South has the lowest average rate at **4.04%**, but its default rate is **26.63%**, compared with **22.51%** in North.
+
+South also contains **64,016 loans**, so the difference matters because it affects a large part of the portfolio.
+
+North-East records an even higher default rate, but with only **1,235 loans**, the sample is much smaller and should be interpreted more carefully.
 
 ### 4. Hidden Stress Exposure
 
 ![Hidden Stress Exposure](screenshots/04_h3_stress_exposure.png.png)
 
-What this dashboard shows: default rate and loss exposure by LTV band, plus an income-shock simulator. Default rate climbs from 17–35% in normal LTV ranges to 80.69% at 100–120% LTV and 99.9% above 120%. The biggest dollar concentration isn't even in the extreme bands — it's $3.6B sitting in the 80–100% LTV band. A 10% income shock puts 21,269 currently-performing loans ($7.06B) at risk of breaching DTI.
-Why it matters: the 80–100% LTV band looks "fine" on default rate alone (22.6%, near portfolio average) but is the single largest loss concentration in dollars — exactly what a headline metric hides.
+This page looks at default risk and exposure by loan-to-value band.
 
+Default rates rise sharply once LTV moves above 100%, reaching around **80.69%** in the 100–120% band and almost **100%** above 120%.
+
+However, the largest dollar concentration is actually in the **80–100% LTV band**, with around **$3.6B** in exposure.
+
+The page also includes an income-shock scenario. With a **10% fall in income**, 21,269 currently performing loans representing approximately **$7.06B** in exposure would move above a 50% DTI threshold.
+
+This shows why looking only at default rates can miss the amount of money concentrated in larger risk segments.
 
 ### 5. Executive Summary
 
 ![Executive Summary](screenshots/05_executive_summary.png.png)
 
-What this page shows: the whole engagement on one slide — three verdicts, three actions, key numbers, absorbable in under a minute.
-Why it matters: the three findings compound into one story: the credit model can't tell good borrowers from bad, so pricing isn't risk-adjusted, and the riskiest loans are hiding in a normal-looking average. That's a Board-level finding, not three separate data quality notes.
+The final page brings the three findings together in one place.
 
----
+The main conclusion is that the portfolio shows three connected issues:
+
+- credit score bands provide very little separation in default rates,
+- interest rates do not appear closely aligned with regional default risk,
+- and significant exposure is concentrated in higher-LTV borrowers.
+
+The page summarises the evidence and the main areas that could be reviewed further.
+
 ---
 
 ## Power BI Data Model
 
 ![Power BI Star Schema](screenshots/06_powerbi_data_model.png.png)
 
-This star-schema model connects the central loan dataset to supporting dimension tables, enabling consistent filtering and analysis across the five-page Power BI dashboard.
+The Power BI model uses a star-schema structure, with the main loan dataset connected to supporting dimension tables.
+
+This keeps filtering consistent across the five dashboard pages and makes the model easier to maintain.
 
 ---
 
@@ -111,16 +135,16 @@ This star-schema model connects the central loan dataset to supporting dimension
 
 | Tool | Purpose |
 |---|---|
-| SQL Server / SSMS | Database setup, raw staging, data cleaning, EDA, 10 analytical queries, 2 views, 1 stored procedure |
-| Power BI Desktop | Star schema (1 fact + 6 dim tables), 6 DAX measures, 5-page executive dashboard |
-| T-SQL | CTEs, window functions (NTILE, ROW_NUMBER, PERCENTILE_CONT), BULK INSERT, BCP export |
-| DAX | Default Rate %, Total Loss Exposure, Avg Interest Rate, Avg LTV, H1 Spread, At-Risk Exposure |
+| SQL Server / SSMS | Database setup, staging, cleaning, EDA, analytical queries, views and stored procedures |
+| Power BI Desktop | Star schema, DAX measures and 5-page dashboard |
+| T-SQL | CTEs, window functions, statistical functions, BULK INSERT and BCP export |
+| DAX | Default Rate %, Total Loss Exposure, Avg Interest Rate, Avg LTV, H1 Spread and At-Risk Exposure |
 
 ---
 
 ## Project Structure
 
-```
+```text
 bank-loan-credit-risk-review/
 ├── README.md
 ├── DATA_DICTIONARY.md
@@ -145,70 +169,74 @@ bank-loan-credit-risk-review/
 
 ## SQL Phase — What Was Built
 
-The SQL script (`Phase2_SQL_Analysis.sql`) is structured as a complete, reproducible pipeline:
+The SQL script (`Phase2_SQL_Analysis.sql`) covers the full workflow from raw data to analysis:
 
-1. **Database Setup** — `BankLoanCreditRisk` database created from scratch
-2. **Raw Staging Table** — `dbo.Raw_LoanData` mirrors the source CSV 1:1 (audit trail)
-3. **BULK INSERT** — 148,670 rows imported via T-SQL script (fully reproducible)
-4. **Data Cleaning** — `dbo.Clean_LoanData` created with regional median imputation, casing standardisation, LTV recalculation, and 4 derived columns (`LTV_clean`, `LTV_reliability_flag`, `credit_score_band`, `LTV_band`)
-5. **Standalone EDA** — KPI reconciliation confirming SQL matches expected population
-6. **10 Analytical Queries** — 3 for H1, 4 for H2, 3 for H3 — each using CTEs and window functions
-7. **2 Reusable Views** — `vw_CreditScoreModelIntegrity` (H1), `vw_RegionalPricingRisk` (H2)
-8. **Executive Stored Procedure** — `usp_ExecutiveRiskBriefing` — one call returns verdicts on all 3 hypotheses with income shock simulation
+1. **Database Setup** — creates the `BankLoanCreditRisk` database
+2. **Raw Staging Table** — `dbo.Raw_LoanData` keeps the original source structure for comparison and validation
+3. **BULK INSERT** — loads all 148,670 records into SQL Server
+4. **Data Cleaning** — creates `dbo.Clean_LoanData` with median imputation, standardised text fields, recalculated LTV and four derived columns
+5. **EDA and Validation** — checks row counts, nulls, distributions and portfolio KPIs
+6. **10 Analytical Queries** — 3 for H1, 4 for H2 and 3 for H3
+7. **2 Reusable Views** — `vw_CreditScoreModelIntegrity` and `vw_RegionalPricingRisk`
+8. **Stored Procedure** — `usp_ExecutiveRiskBriefing` returns the main portfolio findings and income-shock results
+
+---
 
 ## SQL Data Pipeline & Analysis
 
-The T-SQL script forms a complete, reproducible audit-to-insight pipeline across **148,670 loans and 34 source columns**.
+The T-SQL script analyses **148,670 loans across 34 source columns**.
 
 ### Data Ingestion & Audit
 
-- Creates the dedicated `BankLoanCreditRisk` database.
-- Builds `dbo.Raw_LoanData` as a 1:1 staging table, preserving the original data for auditability.
-- Uses `BULK INSERT` to load all 148,670 records.
-- Performs pre-cleaning checks covering nulls, categorical consistency and row-count reconciliation.
+- Creates the `BankLoanCreditRisk` database.
+- Builds `dbo.Raw_LoanData` as a staging table matching the source file.
+- Uses `BULK INSERT` to load the dataset.
+- Checks row counts, null values and categorical consistency before cleaning.
 
 ### Data Cleaning & Feature Engineering
 
-- Standardises regional naming and replaces missing `loan_limit` values with `Unknown`.
+- Standardises regional naming.
+- Replaces missing `loan_limit` values with `Unknown`.
 - Imputes missing loan terms using the mode.
 - Imputes missing property values and income using regional medians calculated with `PERCENTILE_CONT`.
 - Recalculates loan-to-value using cleaned property values and `NULLIF` protection.
-- Flags implausible LTV values above 150% using `LTV_reliability_flag`.
-- Creates 50-point credit-score bands and 20-point LTV bands for risk segmentation.
-- Runs post-cleaning validation to confirm imputation, derived fields and population totals.
+- Flags LTV values above 150% using `LTV_reliability_flag`.
+- Creates 50-point credit score bands.
+- Creates 20-point LTV bands for risk segmentation.
+- Runs post-cleaning checks to confirm population totals and derived fields.
 
 ### Hypothesis-Driven SQL Analysis
 
 | Hypothesis | SQL Analysis |
 |---|---|
-| H1 — Credit Score Model Integrity | Default rate by score band, risk ranking using `ROW_NUMBER()`, and flat-curve testing using spread and `STDEV` |
-| H2 — Regional Rate Mispricing | Interest rate by region and score band, regional default comparison, benchmark-gap analysis using CTEs, and small-sample warnings |
-| H3 — Hidden Stress Exposure | Default rate and loss exposure by LTV band, plus high-LTV and low-income segmentation using `NTILE(4)` income quartiles |
+| H1 — Credit Score Model Integrity | Default rate by score band, risk ranking using `ROW_NUMBER()`, and spread testing using `STDEV` |
+| H2 — Regional Rate Mispricing | Interest rate by region and score band, regional default comparisons, benchmark-gap analysis using CTEs, and sample-size checks |
+| H3 — Hidden Stress Exposure | Default rate and exposure by LTV band, plus high-LTV and low-income segmentation using `NTILE(4)` income quartiles |
 
-### Advanced SQL Techniques Demonstrated
+### SQL Techniques Used
 
-- **CTEs and subqueries** for benchmark and segmented analysis.
-- **Window functions:** `ROW_NUMBER`, `NTILE` and `SUM() OVER()`.
-- **Statistical functions:** `PERCENTILE_CONT` and `STDEV`.
-- **Conditional aggregation:** `CASE WHEN`, grouped KPIs and portfolio-percentage calculations.
-- **Defensive SQL:** `ISNULL`, `NULLIF`, explicit casting and verification queries.
-- **Automated decision logic:** `CASE` and `EXISTS` statements that return hypothesis verdicts.
+- **CTEs and subqueries** for benchmark and segmented analysis
+- **Window functions:** `ROW_NUMBER`, `NTILE` and `SUM() OVER()`
+- **Statistical functions:** `PERCENTILE_CONT` and `STDEV`
+- **Conditional aggregation:** `CASE WHEN` and grouped KPI calculations
+- **Defensive SQL:** `ISNULL`, `NULLIF`, explicit casting and validation queries
+- **Decision logic:** `CASE` and `EXISTS` statements used to return hypothesis results
 
-### Production SQL Objects
+### SQL Objects
 
 | Object | Purpose |
 |---|---|
-| `vw_CreditScoreModelIntegrity` | Reusable monitoring view for score-band default rates, pricing and risk ranking |
-| `vw_RegionalPricingRisk` | Regional pricing-risk view containing portfolio benchmarks and sample-size warnings |
-| `usp_ExecutiveRiskBriefing` | Parameterised procedure returning the portfolio overview, H1–H3 evidence, stress simulation and automated verdicts |
+| `vw_CreditScoreModelIntegrity` | Score-band default rates, pricing and risk ranking |
+| `vw_RegionalPricingRisk` | Regional pricing and default-risk comparison with portfolio benchmarks |
+| `usp_ExecutiveRiskBriefing` | Returns portfolio KPIs, H1–H3 analysis and income-shock results |
 
 ### Executive Risk Procedure
 
-The stored procedure accepts an income-shock percentage and returns eight result sets covering the portfolio overview, all three hypotheses and the resulting DTI stress exposure.
-EXEC dbo.usp_ExecutiveRiskBriefing @IncomeShockPct = 10.00;
+The stored procedure accepts an income-shock percentage and returns the portfolio overview, the three hypothesis results and the related DTI stress exposure.
+
 ```sql
-
-
+EXEC dbo.usp_ExecutiveRiskBriefing @IncomeShockPct = 10.00;
+```
 
 ---
 
@@ -216,33 +244,40 @@ EXEC dbo.usp_ExecutiveRiskBriefing @IncomeShockPct = 10.00;
 
 | Page | Title | Content |
 |---|---|---|
-| 1 | Portfolio Overview | 4 KPI cards, loan volume by region, default rate by region, loan purpose mix |
-| 2 | Is the Credit Scoring Model Working? (H1) | Default rate by band bar chart, risk rank table, 1.25pp spread verdict card |
-| 3 | Is Risk Mispriced by Region? (H2) | Rate vs default by region charts, mispricing gap table, South underpricing callout |
-| 4 | Where is the Hidden Stress? (H3) | Default rate by LTV band, loss exposure by LTV band, income shock what-if slicer |
-| 5 | Executive Summary — Risk Verdicts | 3 verdict cards (H1/H2/H3 CONFIRMED), key numbers, recommended actions |
+| 1 | Portfolio Overview | KPI cards, loan volume by region, default rate by region and loan purpose mix |
+| 2 | Is the Credit Scoring Model Working? (H1) | Default rate by score band, risk ranking and score-band spread |
+| 3 | Is Risk Mispriced by Region? (H2) | Interest rate vs default rate, regional comparison and South pricing analysis |
+| 4 | Where is the Hidden Stress? (H3) | Default rate by LTV band, exposure by LTV band and income-shock scenario |
+| 5 | Executive Summary — Risk Verdicts | Summary of the three findings, key numbers and recommended actions |
 
 ---
 
 ## Data Source
 
-**Dataset:** [Loan Default — Kaggle](https://www.kaggle.com/)
-**Rows:** 148,670
-**Columns:** 34
+**Dataset:** [Loan Default — Kaggle](https://www.kaggle.com/)  
+**Rows:** 148,670  
+**Columns:** 34  
 **Year:** 2019
 
 ---
 
 ## Recommended Actions
 
-1. **H1** — Commission a full credit model review. The current model provides no differentiation across a 400-point score range and cannot be used for risk-based pricing.
-2. **H2** — Reprice South region loans upward immediately. The South carries 26.63% default risk at the cheapest rate in the portfolio — a structural mispricing that is transferring risk to the bank.
-3. **H3** — Place all loans above 100% LTV on enhanced monitoring. A 10% income shock alone puts $7.06B of currently performing loans at risk of breaching 50% DTI.
+Based on the analysis, three areas would be worth reviewing further:
+
+1. **Review the credit scoring approach** — default rates show very little separation across the eight score bands, so additional variables may be needed for stronger risk segmentation.
+
+2. **Review regional pricing, particularly South** — South has a higher observed default rate than North while receiving the lowest average interest rate in the portfolio.
+
+3. **Increase monitoring of very high-LTV loans** — loans above 100% LTV show much higher default rates, while the income-shock scenario also highlights significant exposure to borrowers that could move above a 50% DTI threshold.
+
+These recommendations are based on patterns observed in this dataset and would require further validation before being used for real lending or pricing decisions.
 
 ---
 
 ## Author
 
-**Shabab Tahsin**
-Business Data Analyst | SQL · Power BI · Python
+**Shah Tahsin**  
+Business Data Analyst | SQL · Power BI · Python  
+
 [GitHub](https://github.com/shababtahsin)
