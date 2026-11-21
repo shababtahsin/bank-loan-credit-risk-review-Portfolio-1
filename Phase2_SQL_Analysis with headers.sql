@@ -156,7 +156,7 @@ SELECT Region, COUNT(*) AS cnt FROM dbo.Raw_LoanData GROUP BY Region ORDER BY Re
 SELECT Gender, COUNT(*) AS cnt FROM dbo.Raw_LoanData GROUP BY Gender ORDER BY Gender;
 SELECT loan_limit, COUNT(*) AS cnt FROM dbo.Raw_LoanData GROUP BY loan_limit ORDER BY loan_limit;
 
-
+/*
 
 /* ============================================================
    STEP 4b: REGIONAL MEDIANS — COMPUTED FOR IMPUTATION
@@ -181,7 +181,45 @@ SELECT
     CAST(median_income AS DECIMAL(12,2)) AS median_income
 FROM Medians
 ORDER BY Region_Clean;
+ */ 
+/* ============================================================
+   STEP 4b: REGIONAL MEDIANS — COMPUTED FOR IMPUTATION
 
+   BUSINESS QUESTION:
+   Calculate the median property value and borrower income
+   separately for each region, ignoring missing values,
+   to support future data cleaning.
+
+    
+   ============================================================ */
+
+;WITH Clean_Regions AS (
+    SELECT
+        CASE
+            WHEN LOWER(TRIM(Region)) = 'north-east' THEN 'North-East'
+            WHEN Region IS NULL THEN NULL
+            ELSE UPPER(LEFT(TRIM(Region), 1)) + LOWER(SUBSTRING(TRIM(Region), 2, LEN(TRIM(Region))))
+        END AS Region_Clean,
+        property_value,
+        income
+    FROM dbo.Raw_LoanData
+),
+Regional_Medians AS (
+    SELECT
+        Region_Clean,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY property_value)
+            OVER (PARTITION BY Region_Clean) AS median_property_value,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY income)
+            OVER (PARTITION BY Region_Clean) AS median_income
+    FROM Clean_Regions
+    WHERE Region_Clean IS NOT NULL
+)
+SELECT DISTINCT
+    Region_Clean,
+    CAST(median_property_value AS DECIMAL(12,2)) AS median_property_value,
+    CAST(median_income AS DECIMAL(12,2)) AS median_income
+FROM Regional_Medians
+ORDER BY Region_Clean;
 
 
 /* ============================================================
