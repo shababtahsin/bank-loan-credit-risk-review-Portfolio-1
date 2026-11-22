@@ -114,445 +114,716 @@ SELECT
 FROM dbo.Raw_LoanData;
 GO
 
-
-
-
-/* ============================================================
-   PROJECT: Bank Loan Credit Risk & Pricing Integrity Review
-   PART 2: DATA CLEANING & TRANSFORMATION
-
-   ORIGINAL AUTHOR: Shabab
-   ORIGINAL DATE: 2026-06-20
-   SOURCE: Kaggle Loan_Default.csv
-   DATABASE: BankLoanCreditRisk
-
-   BUSINESS QUESTIONS:
-   1. Which columns contain missing values?
-   2. Are categorical values consistent?
-   3. What are the regional property and income medians?
-   4. How should missing values be replaced?
-   5. How can LTV and borrower risk bands be calculated?
-   6. Can the cleaned dataset be verified?
-
-   EXPECTED RECORDS: 148,670
-
-   METHOD:
-   Temporary Tables + UPDATE + LEFT JOIN
-   Window Functions + CASE + CROSS APPLY
-
-   No chained CTEs.
-   ============================================================ */
-
-USE BankLoanCreditRisk;
-GO
-
-
 -- ============================================================
--- 2.1 — PRE-CLEANING AUDIT / NULL COUNTS
--- Task: Identify missing values in the raw dataset.
--- (Find the empty spaces in the bank's records.)
+-- PHASE 2: DATA CLEANING
+-- 2.1 — INITIAL DATA QUALITY AUDIT
+-- Task: Identify missing values in the raw loan dataset.
+-- (Count how many empty values exist in each important column.)
+--
 -- Business Question:
--- Which important loan columns contain missing values?
+-- Which important loan columns contain missing values,
+-- how many records are affected, and what percentage
+-- of the portfolio is missing information?
 -- ============================================================
 
 SELECT
-    COUNT(*) AS TotalRows,
-    SUM(CASE WHEN rate_of_interest IS NULL THEN 1 ELSE 0 END) AS null_rate_of_interest,
-    SUM(CASE WHEN Interest_rate_spread IS NULL THEN 1 ELSE 0 END) AS null_interest_rate_spread,
-    SUM(CASE WHEN Upfront_charges IS NULL THEN 1 ELSE 0 END) AS null_upfront_charges,
-    SUM(CASE WHEN term IS NULL THEN 1 ELSE 0 END) AS null_term,
-    SUM(CASE WHEN property_value IS NULL THEN 1 ELSE 0 END) AS null_property_value,
-    SUM(CASE WHEN income IS NULL THEN 1 ELSE 0 END) AS null_income,
-    SUM(CASE WHEN LTV IS NULL THEN 1 ELSE 0 END) AS null_LTV,
-    SUM(CASE WHEN dtir1 IS NULL THEN 1 ELSE 0 END) AS null_dtir1,
-    SUM(CASE WHEN Credit_Score IS NULL THEN 1 ELSE 0 END) AS null_credit_score,
-    SUM(CASE WHEN Region IS NULL THEN 1 ELSE 0 END) AS null_region
+    COUNT(*) AS Total_Rows,
+
+    -- Missing financial values
+    SUM(CASE WHEN rate_of_interest IS NULL THEN 1 ELSE 0 END) AS Missing_Interest_Rates,
+    SUM(CASE WHEN Interest_rate_spread IS NULL THEN 1 ELSE 0 END) AS Missing_Interest_Spreads,
+    SUM(CASE WHEN Upfront_charges IS NULL THEN 1 ELSE 0 END) AS Missing_Upfront_Charges,
+    SUM(CASE WHEN dtir1 IS NULL THEN 1 ELSE 0 END) AS Missing_DTI,
+
+    -- Missing property and income values
+    SUM(CASE WHEN property_value IS NULL THEN 1 ELSE 0 END) AS Missing_Property_Values,
+    SUM(CASE WHEN income IS NULL THEN 1 ELSE 0 END) AS Missing_Income,
+    SUM(CASE WHEN LTV IS NULL THEN 1 ELSE 0 END) AS Missing_LTV,
+
+    -- Missing categorical values
+    SUM(CASE WHEN loan_limit IS NULL THEN 1 ELSE 0 END) AS Missing_Loan_Limits,
+    SUM(CASE WHEN approv_in_adv IS NULL THEN 1 ELSE 0 END) AS Missing_Advance_Approvals,
+    SUM(CASE WHEN submission_of_application IS NULL THEN 1 ELSE 0 END) AS Missing_Submissions,
+    SUM(CASE WHEN age IS NULL THEN 1 ELSE 0 END) AS Missing_Age,
+    SUM(CASE WHEN loan_purpose IS NULL THEN 1 ELSE 0 END) AS Missing_Loan_Purposes,
+    SUM(CASE WHEN Neg_ammortization IS NULL THEN 1 ELSE 0 END) AS Missing_Negative_Amortization,
+
+    -- Missing loan terms
+    SUM(CASE WHEN term IS NULL THEN 1 ELSE 0 END) AS Missing_Terms
+
 FROM dbo.Raw_LoanData;
-
-
 -- ============================================================
--- 2.2 — CATEGORICAL CONSISTENCY
--- Task: Inspect Region, Gender and loan_limit values.
--- (Check whether categories contain inconsistent names.)
+-- PHASE 2: DATA CLEANING
+-- 2.2 — DUPLICATE DETECTION
+-- Task: Identify duplicate loan IDs and duplicate records.
+-- (Check whether the same loan appears more than once.)
+--
 -- Business Question:
--- Do the categorical columns contain inconsistent values?
+-- Are any loans recorded more than once, potentially
+-- causing incorrect loan counts, default rates or
+-- financial calculations?
 -- ============================================================
 
--- Check 1: Region.
-SELECT Region, COUNT(*) AS cnt
-FROM dbo.Raw_LoanData
-GROUP BY Region
-ORDER BY Region;
+-- CHECK 1: Find duplicate loan IDs.
 
--- Check 2: Gender.
-SELECT Gender, COUNT(*) AS cnt
-FROM dbo.Raw_LoanData
-GROUP BY Gender
-ORDER BY Gender;
-
--- Check 3: Loan limit.
-SELECT loan_limit, COUNT(*) AS cnt
-FROM dbo.Raw_LoanData
-GROUP BY loan_limit
-ORDER BY loan_limit;
-
-
--- ============================================================
--- 2.3 — STANDARDISE REGION NAMES
--- Task: Create a temporary table with consistent regions.
--- (Give every recognised region the same name.)
--- Business Question:
--- How can regional names be standardised before cleaning?
--- ============================================================
-
--- Remove temporary tables from a previous execution.
-DROP TABLE IF EXISTS #Loan_Work;
-DROP TABLE IF EXISTS #Regional_Medians;
-
--- Preserve raw data and add a standardised region column.
 SELECT
-    *,
-    CASE
-        WHEN LOWER(TRIM(Region)) = 'central' THEN 'Central'
-        WHEN LOWER(TRIM(Region)) = 'north' THEN 'North'
-        WHEN LOWER(TRIM(Region)) = 'north-east' THEN 'North-East'
-        WHEN LOWER(TRIM(Region)) = 'south' THEN 'South'
-    END AS Region_Clean
-INTO #Loan_Work
-FROM dbo.Raw_LoanData;
+    ID,
+    COUNT(*) AS Duplicate_Count
+FROM dbo.Raw_LoanData
+GROUP BY ID
+HAVING COUNT(*) > 1
+ORDER BY Duplicate_Count DESC;
 
--- Verify regional standardisation.
+
+-- CHECK 2: Identify repeated loan IDs using ROW_NUMBER().
+
+;WITH Loan_Duplicates AS (
+    SELECT
+        ID,
+        loan_amount,
+        Credit_Score,
+        Status,
+        ROW_NUMBER() OVER (PARTITION BY ID ORDER BY ID) 
+                                            AS Row_Number
+    FROM dbo.Raw_LoanData
+)
+
+SELECT
+    *
+FROM Loan_Duplicates
+WHERE Row_Number > 1;
+ 
+-- ============================================================
+-- PHASE 2: DATA CLEANING
+-- 2.3 — REGION STANDARDISATION
+-- Task: Standardise inconsistent region names.
+-- (Make sure the same region always has the same name.)
+--
+-- Business Question:
+-- Can the bank ensure all region names are consistently
+-- written as Central, North, North-East, and South?
+-- ============================================================
+
+-- STEP 1: Standardise region names using a CTE.
+
+;WITH Standardised_Regions AS (
+    SELECT
+        ID,
+        Region,
+        CASE
+            WHEN LOWER(TRIM(Region)) = 'central' THEN 'Central'
+            WHEN LOWER(TRIM(Region)) = 'north' THEN 'North'
+            WHEN LOWER(TRIM(Region)) = 'north-east' THEN 'North-East'
+            WHEN LOWER(TRIM(Region)) = 'south' THEN 'South'
+            ELSE 'Unknown'
+        END AS Region_Clean
+    FROM dbo.Raw_LoanData
+)
+
+-- STEP 2: Verify original versus cleaned region names.
+
 SELECT
     Region,
     Region_Clean,
     COUNT(*) AS Total_Loans
-FROM #Loan_Work
+FROM Standardised_Regions
 GROUP BY Region, Region_Clean
-ORDER BY Region_Clean;
-
-
--- 2.4 — REGIONAL MEDIAN AUDIT
--- Task: Calculate median property values and income by region.
--- (Find the middle property value and income in each region.)
+ORDER BY Region_Clean, Region;
+-- ============================================================
+-- PHASE 2: DATA CLEANING
+-- 2.4 — CATEGORICAL DATA CLEANING
+-- Task: Inspect and standardise categorical values.
+-- (Replace missing category names with Unknown.)
+--
 -- Business Question:
--- What is the median property value and borrower income
--- for each standardised region, ignoring NULL values?
+-- Which categorical loan columns contain missing values,
+-- and how can we standardise them without losing information?
+-- ============================================================
 
-;WITH Clean_Regions AS (
+-- STEP 1: Inspect categorical values and missing records.
+
+SELECT loan_limit, COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY loan_limit
+ORDER BY loan_limit;
+
+SELECT approv_in_adv, COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY approv_in_adv
+ORDER BY approv_in_adv;
+
+SELECT loan_purpose, COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY loan_purpose
+ORDER BY loan_purpose;
+
+SELECT Neg_ammortization, COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY Neg_ammortization
+ORDER BY Neg_ammortization;
+
+SELECT age, COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY age
+ORDER BY age;
+
+SELECT submission_of_application, COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY submission_of_application
+ORDER BY submission_of_application;
+
+SELECT Gender, COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY Gender
+ORDER BY Gender;
+
+
+-- STEP 2: Preview standardised categorical values.
+
+;WITH Clean_Categories AS (
+    SELECT
+        ID,
+
+        ISNULL(NULLIF(TRIM(loan_limit), ''), 'Unknown') AS loan_limit_clean,
+        ISNULL(NULLIF(TRIM(approv_in_adv), ''), 'Unknown') AS approv_in_adv_clean,
+        ISNULL(NULLIF(TRIM(loan_purpose), ''), 'Unknown') AS loan_purpose_clean,
+        ISNULL(NULLIF(TRIM(Neg_ammortization), ''), 'Unknown') AS Neg_ammortization_clean,
+        ISNULL(NULLIF(TRIM(age), ''), 'Unknown') AS age_clean,
+        ISNULL(NULLIF(TRIM(submission_of_application), ''), 'Unknown') AS submission_clean,
+        ISNULL(NULLIF(TRIM(Gender), ''), 'Unknown') AS Gender_clean
+
+    FROM dbo.Raw_LoanData
+)
+
+SELECT TOP 10 *
+FROM Clean_Categories
+ORDER BY ID;
+
+-- ============================================================
+-- PHASE 2: DATA CLEANING
+-- 2.5 — MISSING FINANCIAL VALUES
+-- Task: Investigate missing financial information.
+-- (Find missing numbers and check which loans they belong to.)
+--
+-- Business Question:
+-- How many financial values are missing, and are these
+-- missing values associated with loans that defaulted?
+-- ============================================================
+
+-- CHECK 1: Count missing financial values.
+
+SELECT
+    COUNT(*) AS Total_Loans,
+
+    SUM(CASE WHEN rate_of_interest IS NULL THEN 1 ELSE 0 END) AS Missing_Interest_Rates,
+    SUM(CASE WHEN Interest_rate_spread IS NULL THEN 1 ELSE 0 END) AS Missing_Interest_Spreads,
+    SUM(CASE WHEN Upfront_charges IS NULL THEN 1 ELSE 0 END) AS Missing_Upfront_Charges,
+    SUM(CASE WHEN dtir1 IS NULL THEN 1 ELSE 0 END) AS Missing_DTI
+
+FROM dbo.Raw_LoanData;
+
+
+-- CHECK 2: Compare missing values by loan status.
+
+SELECT
+    Status,
+    COUNT(*) AS Total_Loans,
+
+    SUM(CASE WHEN rate_of_interest IS NULL THEN 1 ELSE 0 END) AS Missing_Interest_Rates,
+    SUM(CASE WHEN Interest_rate_spread IS NULL THEN 1 ELSE 0 END) AS Missing_Interest_Spreads,
+    SUM(CASE WHEN Upfront_charges IS NULL THEN 1 ELSE 0 END) AS Missing_Upfront_Charges,
+    SUM(CASE WHEN dtir1 IS NULL THEN 1 ELSE 0 END) AS Missing_DTI
+
+FROM dbo.Raw_LoanData
+GROUP BY Status
+ORDER BY Status;
+
+
+-- CHECK 3: Inspect affected loan records.
+
+SELECT TOP 20
+    ID,
+    Status,
+    loan_amount,
+    rate_of_interest,
+    Interest_rate_spread,
+    Upfront_charges,
+    dtir1
+FROM dbo.Raw_LoanData
+WHERE rate_of_interest IS NULL
+   OR Interest_rate_spread IS NULL
+   OR Upfront_charges IS NULL
+   OR dtir1 IS NULL
+ORDER BY ID;
+-- ============================================================
+-- PHASE 2: DATA CLEANING
+-- 2.6 — MISSING PROPERTY VALUES AND INCOME
+-- Task: Investigate missing values and calculate regional medians.
+-- (Find empty numbers and the middle value for each region.)
+--
+-- Business Question:
+-- How many property values, borrower incomes and LTV
+-- ratios are missing, and what are the median property
+-- values and incomes for each region?
+-- ============================================================
+
+-- CHECK 1: Count missing values.
+
+SELECT
+    COUNT(*) AS Total_Loans,
+    SUM(CASE WHEN property_value IS NULL THEN 1 ELSE 0 END) AS Missing_Property_Values,
+    SUM(CASE WHEN income IS NULL THEN 1 ELSE 0 END) AS Missing_Income,
+    SUM(CASE WHEN LTV IS NULL THEN 1 ELSE 0 END) AS Missing_LTV
+FROM dbo.Raw_LoanData;
+
+
+-- CHECK 2: Compare missing values by region.
+
+SELECT
+    Region,
+    COUNT(*) AS Total_Loans,
+    SUM(CASE WHEN property_value IS NULL THEN 1 ELSE 0 END) AS Missing_Property_Values,
+    SUM(CASE WHEN income IS NULL THEN 1 ELSE 0 END) AS Missing_Income
+FROM dbo.Raw_LoanData
+GROUP BY Region
+ORDER BY Region;
+
+
+-- CHECK 3: Calculate regional median property values and incomes.
+
+;WITH Standardised_Regions AS (
     SELECT
         CASE
+            WHEN LOWER(TRIM(Region)) = 'central' THEN 'Central'
+            WHEN LOWER(TRIM(Region)) = 'north' THEN 'North'
             WHEN LOWER(TRIM(Region)) = 'north-east' THEN 'North-East'
-            WHEN Region IS NULL THEN NULL
-            ELSE UPPER(LEFT(TRIM(Region), 1))
-               + LOWER(SUBSTRING(TRIM(Region), 2, LEN(TRIM(Region))))
+            WHEN LOWER(TRIM(Region)) = 'south' THEN 'South'
+            ELSE 'Unknown'
         END AS Region_Clean,
         property_value,
         income
     FROM dbo.Raw_LoanData
-)
-SELECT DISTINCT
-    Region_Clean,
+),
 
-    CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY property_value)
-        OVER (PARTITION BY Region_Clean) AS DECIMAL(12,2)) AS median_property_value,
-
-    CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY income)
-        OVER (PARTITION BY Region_Clean) AS DECIMAL(12,2)) AS median_income
-
-FROM Clean_Regions
-WHERE Region_Clean IS NOT NULL
-ORDER BY Region_Clean;
-
-
-
--- ============================================================
--- 2.5 — PREPARE IMPUTATION MEDIANS
--- Task: Store the regional medians used for cleaning.
--- (Save the middle values needed to fill missing data.)
--- Business Question:
--- Which regional medians should replace missing
--- property values and borrower incomes?
--- ============================================================
-
--- IMPORTANT:
--- Preserve the original Step 4c median population.
--- Both property_value AND income must be non-NULL.
--- This differs intentionally from the standalone audit.
-
-SELECT DISTINCT
-    M.Region_Clean,
-    CAST(M.median_property_value AS DECIMAL(12,2)) AS median_property_value,
-    CAST(M.median_income AS DECIMAL(12,2)) AS median_income
-INTO #Regional_Medians
-FROM (
+Regional_Medians AS (
     SELECT
         Region_Clean,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY property_value)
-            OVER (PARTITION BY Region_Clean) AS median_property_value,
+            OVER (PARTITION BY Region_Clean) AS Median_Property_Value,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY income)
-            OVER (PARTITION BY Region_Clean) AS median_income
-    FROM #Loan_Work
-    WHERE property_value IS NOT NULL
-      AND income IS NOT NULL
-) M;
+            OVER (PARTITION BY Region_Clean) AS Median_Income
+    FROM Standardised_Regions
+    WHERE Region_Clean <> 'Unknown'
+)
 
--- Verify stored regional medians.
-SELECT *
-FROM #Regional_Medians
+SELECT DISTINCT
+    Region_Clean,
+    CAST(Median_Property_Value AS DECIMAL(12,2)) AS Median_Property_Value,
+    CAST(Median_Income AS DECIMAL(12,2)) AS Median_Income
+FROM Regional_Medians
 ORDER BY Region_Clean;
-
-
 -- ============================================================
--- 2.6 — REPLACE MISSING VALUES
--- Task: Apply the original missing-value replacement rules.
--- (Fill empty values using the agreed cleaning rules.)
+-- PHASE 2: DATA CLEANING
+-- 2.7 — MISSING LOAN TERMS
+-- Task: Investigate missing loan terms and preview replacements.
+-- (Find missing repayment periods and fill them with 360 months.)
+--
 -- Business Question:
--- How can missing loan limits, terms, property values
--- and borrower incomes be replaced consistently?
+-- How many loans have missing repayment terms, what are
+-- the existing loan-term durations, and can missing
+-- terms be replaced with 360 months?
 -- ============================================================
 
--- Rule 1: Missing loan_limit becomes Unknown.
-UPDATE #Loan_Work
-SET loan_limit = 'Unknown'
-WHERE loan_limit IS NULL;
+-- CHECK 1: Count loans by repayment term.
 
--- Rule 2: Missing loan term becomes 360 months.
-UPDATE #Loan_Work
-SET term = 360
-WHERE term IS NULL;
-
--- Rule 3: Missing property value uses its regional median.
--- Rule 4: Missing income uses its regional median.
-
-UPDATE L
-SET
-    property_value = ISNULL(L.property_value, M.median_property_value),
-    income = ISNULL(L.income, M.median_income)
-FROM #Loan_Work L
-LEFT JOIN #Regional_Medians M
-    ON L.Region_Clean = M.Region_Clean
-WHERE L.property_value IS NULL
-   OR L.income IS NULL;
-
--- Verify missing-value replacements.
 SELECT
-    COUNT(*) AS TotalRows,
-    SUM(CASE WHEN loan_limit = 'Unknown' THEN 1 ELSE 0 END) AS Unknown_Loan_Limits,
-    SUM(CASE WHEN term IS NULL THEN 1 ELSE 0 END) AS Missing_Terms,
-    SUM(CASE WHEN property_value IS NULL THEN 1 ELSE 0 END) AS Missing_Property_Values,
-    SUM(CASE WHEN income IS NULL THEN 1 ELSE 0 END) AS Missing_Income
-FROM #Loan_Work;
+    term,
+    COUNT(*) AS Total_Loans
+FROM dbo.Raw_LoanData
+GROUP BY term
+ORDER BY term;
 
 
--- ============================================================
--- 2.7 — CALCULATE LOAN-TO-VALUE RATIO
--- Task: Recalculate LTV using loan amount and property value.
--- (Find how big each loan is compared with its property.)
--- Business Question:
--- What percentage of the property's value is financed
--- by each loan?
--- ============================================================
+-- CHECK 2: Inspect loans with missing terms.
 
--- Preview the calculation before creating the final table.
-
-SELECT TOP 10
+SELECT
     ID,
     loan_amount,
-    property_value AS property_value_clean,
-    CAST(loan_amount * 100.0 / NULLIF(property_value, 0)
-        AS DECIMAL(10,5)) AS LTV_clean
-FROM #Loan_Work
+    loan_type,
+    term,
+    Status
+FROM dbo.Raw_LoanData
+WHERE term IS NULL
 ORDER BY ID;
 
 
--- ============================================================
--- 2.8 — CREATE RISK CLASSIFICATIONS
--- Task: Define LTV reliability, credit-score and LTV bands.
--- (Organise borrowers into meaningful risk categories.)
--- Business Question:
--- How can loans be classified by credit score, LTV level
--- and LTV reliability?
--- ============================================================
+-- CHECK 3: Preview replacement using a CTE.
 
--- Original classification rules retained:
---
--- LTV > 150%      = Unreliable
--- Otherwise       = Reliable
---
--- Credit score bands:
--- 500-549, 550-599, 600-649, 650-699,
--- 700-749, 750-799, 800-849, 850-900, Other
---
--- LTV bands:
--- 0-20, 20-40, 40-60, 60-80,
--- 80-100, 100-120, >120
---
--- These classifications are calculated in Section 2.9.
-
-
--- ============================================================
--- 2.9 — CREATE CLEAN ANALYTICAL TABLE
--- Task: Create dbo.Clean_LoanData with transformed columns.
--- (Build the final cleaned loan dataset.)
--- Business Question:
--- Can all original loan information and derived risk
--- classifications be combined into one analytical table?
--- ============================================================
-
--- SAFETY:
--- Do not automatically delete an existing clean table.
--- Stop and require an intentional rebuild if it exists.
-
-IF OBJECT_ID('dbo.Clean_LoanData', 'U') IS NOT NULL
-BEGIN
-    THROW 51000,
-        'dbo.Clean_LoanData already exists. Review it before rebuilding Part 2.',
-        1;
-END;
-
--- Create the original 37-column cleaned analytical output.
+;WITH Clean_Loan_Terms AS (
+    SELECT
+        ID,
+        loan_amount,
+        term,
+        ISNULL(term, 360) AS term_clean
+    FROM dbo.Raw_LoanData
+)
 
 SELECT
-    -- Original loan information
-    L.ID,
-    L.[year],
-    L.loan_limit,
-    L.Gender,
-    L.approv_in_adv,
-    L.loan_type,
-    L.loan_purpose,
-    L.Credit_Worthiness,
-    L.open_credit,
-    L.business_or_commercial,
-    L.loan_amount,
-    L.rate_of_interest,
-    L.Interest_rate_spread,
-    L.Upfront_charges,
-    L.term,
-    L.Neg_ammortization,
-    L.interest_only,
-    L.lump_sum_payment,
-    L.property_value AS property_value_clean,
-    L.construction_type,
-    L.occupancy_type,
-    L.Secured_by,
-    L.total_units,
-    L.income AS income_clean,
-    L.credit_type,
-    L.Credit_Score,
-    L.[co-applicant_credit_type],
-    L.age,
-    L.submission_of_application,
-    L.Region_Clean AS Region,
-    L.Security_Type,
-    L.Status,
-    L.dtir1,
+    ID,
+    loan_amount,
+    term,
+    term_clean
+FROM Clean_Loan_Terms
+WHERE term IS NULL
+ORDER BY ID;
 
-    -- Derived column 1: Clean LTV
-    CAST(V.LTV_Ratio AS DECIMAL(10,5)) AS LTV_clean,
+-- ============================================================
+-- PHASE 2: DATA CLEANING
+-- 2.8 — NUMERIC VALIDATION AND LTV RECALCULATION
+-- Task: Identify suspicious values and recalculate LTV.
+-- (Check financial numbers and compare loans with house values.)
+--
+-- Business Question:
+-- Are loan amounts, property values, borrower incomes,
+-- credit scores and LTV ratios valid, and can we calculate
+-- LTV accurately using loan amount and property value?
+-- ============================================================
 
-    -- Derived column 2: LTV reliability
+-- CHECK 1: Identify suspicious numerical values.
+
+SELECT
+    ID,
+    loan_amount,
+    property_value,
+    income,
+    Credit_Score,
+    LTV
+FROM dbo.Raw_LoanData
+WHERE loan_amount <= 0
+   OR property_value <= 0
+   OR income <= 0
+   OR Credit_Score NOT BETWEEN 500 AND 900
+   OR LTV > 150
+   OR LTV < 0;
+
+
+-- CHECK 2: Recalculate LTV using the original property value.
+
+SELECT TOP 20
+    ID,
+    loan_amount,
+    property_value,
+    LTV AS Original_LTV,
+
+    CAST(
+        loan_amount * 100.0 / NULLIF(property_value, 0)
+        AS DECIMAL(10,5)
+    ) AS Calculated_LTV
+
+FROM dbo.Raw_LoanData
+WHERE property_value IS NOT NULL
+ORDER BY ID  ;
+
+
+-- CHECK 3: Compare original and calculated LTV values.
+
+;WITH LTV_Comparison AS (
+    SELECT
+        ID,
+        LTV AS Original_LTV,
+
+        CAST(
+            loan_amount * 100.0 / NULLIF(property_value, 0)
+            AS DECIMAL(10,5)
+        ) AS Calculated_LTV
+
+    FROM dbo.Raw_LoanData
+)
+
+SELECT
+    COUNT(*) AS Total_Loans,
+
+    SUM(CASE
+        WHEN Original_LTV IS NULL THEN 1 ELSE 0
+    END) AS Missing_Original_LTV,
+
+    SUM(CASE
+        WHEN Calculated_LTV IS NULL THEN 1 ELSE 0
+    END) AS Missing_Calculated_LTV,
+
+    SUM(CASE
+        WHEN ABS(Original_LTV - Calculated_LTV) > 0.01
+        THEN 1 ELSE 0
+    END) AS LTV_Mismatches
+
+FROM LTV_Comparison;
+
+-- ============================================================
+-- PHASE 2: DATA CLEANING
+-- 2.9 — CREDIT SCORE AND LTV CLASSIFICATIONS
+-- Task: Classify loans into meaningful risk categories.
+-- (Put loans into groups based on their financial numbers.)
+--
+-- Business Question:
+-- How can the bank classify borrowers by credit score,
+-- LTV percentage and LTV reliability to identify
+-- potentially risky loans?
+-- ============================================================
+
+;WITH Calculated_LTV AS (
+    SELECT
+        ID,
+        Credit_Score,
+        loan_amount,
+        property_value,
+
+        CAST(
+            loan_amount * 100.0 / NULLIF(property_value, 0)
+            AS DECIMAL(10,5)
+        ) AS LTV_Ratio
+
+    FROM dbo.Raw_LoanData
+)
+
+SELECT
+    ID,
+    Credit_Score,
+    LTV_Ratio,
+
+    -- Classification 1: Credit score bands
     CASE
-        WHEN V.LTV_Ratio > 150 THEN 'Unreliable'
-        ELSE 'Reliable'
-    END AS LTV_reliability_flag,
-
-    -- Derived column 3: Credit score bands
-    CASE
-        WHEN L.Credit_Score BETWEEN 500 AND 549 THEN '500-549'
-        WHEN L.Credit_Score BETWEEN 550 AND 599 THEN '550-599'
-        WHEN L.Credit_Score BETWEEN 600 AND 649 THEN '600-649'
-        WHEN L.Credit_Score BETWEEN 650 AND 699 THEN '650-699'
-        WHEN L.Credit_Score BETWEEN 700 AND 749 THEN '700-749'
-        WHEN L.Credit_Score BETWEEN 750 AND 799 THEN '750-799'
-        WHEN L.Credit_Score BETWEEN 800 AND 849 THEN '800-849'
-        WHEN L.Credit_Score BETWEEN 850 AND 900 THEN '850-900'
+        WHEN Credit_Score BETWEEN 500 AND 549 THEN '500-549'
+        WHEN Credit_Score BETWEEN 550 AND 599 THEN '550-599'
+        WHEN Credit_Score BETWEEN 600 AND 649 THEN '600-649'
+        WHEN Credit_Score BETWEEN 650 AND 699 THEN '650-699'
+        WHEN Credit_Score BETWEEN 700 AND 749 THEN '700-749'
+        WHEN Credit_Score BETWEEN 750 AND 799 THEN '750-799'
+        WHEN Credit_Score BETWEEN 800 AND 849 THEN '800-849'
+        WHEN Credit_Score BETWEEN 850 AND 900 THEN '850-900'
         ELSE 'Other'
     END AS credit_score_band,
 
-    -- Derived column 4: LTV bands
+    -- Classification 2: LTV bands
     CASE
-        WHEN V.LTV_Ratio <= 20 THEN '0-20'
-        WHEN V.LTV_Ratio <= 40 THEN '20-40'
-        WHEN V.LTV_Ratio <= 60 THEN '40-60'
-        WHEN V.LTV_Ratio <= 80 THEN '60-80'
-        WHEN V.LTV_Ratio <= 100 THEN '80-100'
-        WHEN V.LTV_Ratio <= 120 THEN '100-120'
+        WHEN LTV_Ratio IS NULL THEN 'Unknown'
+        WHEN LTV_Ratio <= 20 THEN '0-20'
+        WHEN LTV_Ratio <= 40 THEN '20-40'
+        WHEN LTV_Ratio <= 60 THEN '40-60'
+        WHEN LTV_Ratio <= 80 THEN '60-80'
+        WHEN LTV_Ratio <= 100 THEN '80-100'
+        WHEN LTV_Ratio <= 120 THEN '100-120'
+        ELSE '>120'
+    END AS LTV_band,
+
+    -- Classification 3: LTV reliability
+    CASE
+        WHEN LTV_Ratio IS NULL THEN 'Unknown'
+        WHEN LTV_Ratio > 150 THEN 'Unreliable'
+        ELSE 'Reliable'
+    END AS LTV_reliability_flag
+
+FROM Calculated_LTV
+ORDER BY ID;
+-- ============================================================
+-- PHASE 2: DATA CLEANING
+-- 2.10 — CREATE FINAL CLEANED LOAN TABLE
+-- Task: Combine all cleaning transformations.
+-- (Save our cleaned loan records in a new permanent table.)
+--
+-- Business Question:
+-- Can the bank preserve all 148,670 original loan records
+-- while applying approved cleaning rules, calculating LTV,
+-- and creating borrower risk classifications?
+-- ============================================================
+
+-- SAFETY: Prevent accidental replacement of an existing table.
+
+IF OBJECT_ID('dbo.Clean_LoanData', 'U') IS NOT NULL
+    THROW 51000, 'Clean_LoanData already exists.', 1;
+
+
+-- ============================================================
+-- CTE 1: STANDARDISE REGION AND CATEGORICAL VALUES
+-- ============================================================
+
+;WITH Standardised_Data AS (
+    SELECT
+        *,
+
+        CASE
+            WHEN LOWER(TRIM(Region)) = 'central' THEN 'Central'
+            WHEN LOWER(TRIM(Region)) = 'north' THEN 'North'
+            WHEN LOWER(TRIM(Region)) = 'north-east' THEN 'North-East'
+            WHEN LOWER(TRIM(Region)) = 'south' THEN 'South'
+            ELSE 'Unknown'
+        END AS Region_Clean,
+
+        ISNULL(NULLIF(TRIM(loan_limit), ''), 'Unknown') AS loan_limit_clean,
+        ISNULL(NULLIF(TRIM(approv_in_adv), ''), 'Unknown') AS approv_in_adv_clean,
+        ISNULL(NULLIF(TRIM(loan_purpose), ''), 'Unknown') AS loan_purpose_clean,
+        ISNULL(NULLIF(TRIM(Neg_ammortization), ''), 'Unknown') AS Neg_ammortization_clean,
+        ISNULL(NULLIF(TRIM(age), ''), 'Unknown') AS age_clean,
+        ISNULL(NULLIF(TRIM(submission_of_application), ''), 'Unknown') AS submission_clean,
+        ISNULL(NULLIF(TRIM(Gender), ''), 'Unknown') AS Gender_clean
+
+    FROM dbo.Raw_LoanData
+),
+
+-- ============================================================
+-- CTE 2: CALCULATE REGIONAL MEDIANS
+-- ============================================================
+
+Regional_Medians AS (
+    SELECT DISTINCT
+        Region_Clean,
+
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY property_value)
+            OVER (PARTITION BY Region_Clean) AS Median_Property_Value,
+
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY income)
+            OVER (PARTITION BY Region_Clean) AS Median_Income
+
+    FROM Standardised_Data
+    WHERE Region_Clean <> 'Unknown'
+),
+--<> means NOT EQUAL TO in SQL; for example, 
+--Region_Clean <> 'Unknown' excludes regions labelled Unknown.
+-- ============================================================
+-- CTE 3: REPLACE APPROVED MISSING VALUES
+-- ============================================================
+/*
+To replace missing loan terms, property values and borrower 
+incomes using 360 months or the regional medians calculated in CTE 2.
+*/
+Filled_Values AS (
+    SELECT
+        S.*,
+
+        ISNULL(S.term, 360) AS term_clean,
+
+        CAST(
+            ISNULL(S.property_value, M.Median_Property_Value)
+            AS DECIMAL(12,2)
+        ) AS property_value_clean,
+
+        CAST(
+            ISNULL(S.income, M.Median_Income)
+            AS DECIMAL(12,2)
+        ) AS income_clean
+
+    FROM Standardised_Data S
+
+    LEFT JOIN Regional_Medians M
+        ON S.Region_Clean = M.Region_Clean
+),
+
+-- ============================================================
+-- CTE 4: RECALCULATE LOAN-TO-VALUE RATIO
+-- ============================================================
+
+Calculated_LTV AS (
+    SELECT
+        *,-- from previous cte ,here cte3 
+
+        CAST(
+            loan_amount * 100.0 / NULLIF(property_value_clean, 0)
+            AS DECIMAL(10,5)
+        ) AS LTV_clean
+
+    FROM Filled_Values
+)
+
+-- ============================================================
+-- OUTER QUERY: CREATE FINAL CLEANED TABLE
+-- ============================================================
+
+SELECT
+    -- Original and cleaned loan information
+    ID,
+    [year],
+    loan_limit_clean AS loan_limit,
+    Gender_clean AS Gender,
+    approv_in_adv_clean AS approv_in_adv,
+    loan_type,
+    loan_purpose_clean AS loan_purpose,
+    Credit_Worthiness,
+    open_credit,
+    business_or_commercial,
+    loan_amount,
+    rate_of_interest,
+    Interest_rate_spread,
+    Upfront_charges,
+    term_clean AS term,
+    Neg_ammortization_clean AS Neg_ammortization,
+    interest_only,
+    lump_sum_payment,
+    property_value_clean,
+    construction_type,
+    occupancy_type,
+    Secured_by,
+    total_units,
+    income_clean,
+    credit_type,
+    Credit_Score,
+    [co-applicant_credit_type],
+    age_clean AS age,
+    submission_clean AS submission_of_application,
+    Region_Clean AS Region,
+    Security_Type,
+    Status,
+    dtir1,
+
+    -- Derived Column 1: Clean LTV
+    LTV_clean,
+
+    -- Derived Column 2: LTV Reliability
+    CASE
+        WHEN LTV_clean IS NULL THEN 'Unknown'
+        WHEN LTV_clean < 0 THEN 'Unreliable'
+        WHEN LTV_clean > 150 THEN 'Unreliable'
+        ELSE 'Reliable'
+    END AS LTV_reliability_flag,
+
+    -- Derived Column 3: Credit Score Bands
+    CASE
+        WHEN Credit_Score BETWEEN 500 AND 549 THEN '500-549'
+        WHEN Credit_Score BETWEEN 550 AND 599 THEN '550-599'
+        WHEN Credit_Score BETWEEN 600 AND 649 THEN '600-649'
+        WHEN Credit_Score BETWEEN 650 AND 699 THEN '650-699'
+        WHEN Credit_Score BETWEEN 700 AND 749 THEN '700-749'
+        WHEN Credit_Score BETWEEN 750 AND 799 THEN '750-799'
+        WHEN Credit_Score BETWEEN 800 AND 849 THEN '800-849'
+        WHEN Credit_Score BETWEEN 850 AND 900 THEN '850-900'
+        ELSE 'Other'
+    END AS credit_score_band,
+
+    -- Derived Column 4: LTV Bands
+    CASE
+        WHEN LTV_clean IS NULL THEN 'Unknown'
+        WHEN LTV_clean < 0 THEN 'Invalid'
+        WHEN LTV_clean <= 20 THEN '0-20'
+        WHEN LTV_clean <= 40 THEN '20-40'
+        WHEN LTV_clean <= 60 THEN '40-60'
+        WHEN LTV_clean <= 80 THEN '60-80'
+        WHEN LTV_clean <= 100 THEN '80-100'
+        WHEN LTV_clean <= 120 THEN '100-120'
         ELSE '>120'
     END AS LTV_band
 
 INTO dbo.Clean_LoanData
-FROM #Loan_Work L
-
--- Calculate LTV once and reuse it.
-CROSS APPLY (
-    SELECT (L.loan_amount * 100.0) /
-           NULLIF(L.property_value, 0) AS LTV_Ratio
-) V;
+FROM Calculated_LTV;
 
 
--- ============================================================
--- 2.10 — FINAL CLEANING VERIFICATION
--- Task: Verify completeness, row counts and classifications.
--- (Check whether the cleaned loans are ready for analysis.)
--- Business Question:
--- Were all original loan records preserved and all required
--- missing values and risk classifications handled correctly?
--- ============================================================
-
--- Check 1: Raw versus cleaned row counts.
-SELECT
-    (SELECT COUNT(*) FROM dbo.Raw_LoanData) AS Raw_Rows,
-    (SELECT COUNT(*) FROM dbo.Clean_LoanData) AS Clean_Rows;
 
 
--- Check 2: Original post-cleaning verification.
-SELECT
-    COUNT(*) AS TotalRows,
-    SUM(CASE WHEN property_value_clean IS NULL THEN 1 ELSE 0 END) AS null_property_value,
-    SUM(CASE WHEN income_clean IS NULL THEN 1 ELSE 0 END) AS null_income,
-    SUM(CASE WHEN LTV_clean IS NULL THEN 1 ELSE 0 END) AS null_LTV,
-    SUM(CASE WHEN term IS NULL THEN 1 ELSE 0 END) AS null_term,
-    SUM(CASE WHEN loan_limit = 'Unknown' THEN 1 ELSE 0 END) AS loan_limit_unknown,
-    SUM(CASE WHEN LTV_reliability_flag = 'Unreliable' THEN 1 ELSE 0 END) AS unreliable_LTV_rows
-FROM dbo.Clean_LoanData;
 
 
--- Check 3: Credit score band distribution.
-SELECT
-    credit_score_band,
-    COUNT(*) AS Total_Loans
-FROM dbo.Clean_LoanData
-GROUP BY credit_score_band
-ORDER BY credit_score_band;
 
 
--- Check 4: LTV band distribution.
-SELECT
-    LTV_band,
-    COUNT(*) AS Total_Loans
-FROM dbo.Clean_LoanData
-GROUP BY LTV_band
-ORDER BY LTV_band;
 
 
--- Check 5: Confirm output column count.
-SELECT
-    COUNT(*) AS Clean_Table_Columns
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'dbo'
-  AND TABLE_NAME = 'Clean_LoanData';
 
 
--- Check 6: Preview the clean table.
-SELECT TOP 10 *
-FROM dbo.Clean_LoanData
-ORDER BY ID;
-
-
--- ============================================================
--- END OF PART 2 — CORRECTED RECONSTRUCTION
--- ============================================================
 
 
 /* ============================================================
