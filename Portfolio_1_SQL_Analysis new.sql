@@ -231,44 +231,38 @@ GROUP BY Region, Region_Clean
 ORDER BY Region_Clean;
 
 
--- ============================================================
 -- 2.4 — REGIONAL MEDIAN AUDIT
--- Task: Calculate regional property and income medians.
+-- Task: Calculate median property values and income by region.
 -- (Find the middle property value and income in each region.)
 -- Business Question:
 -- What is the median property value and borrower income
--- separately for each region, ignoring missing values?
--- ============================================================
+-- for each standardised region, ignoring NULL values?
 
--- Preserve the original Step 4b normalisation logic.
--- This audit also title-cases unexpected non-NULL regions.
-
-SELECT DISTINCT
-    M.Region_Clean,
-    CAST(M.median_property_value AS DECIMAL(12,2)) AS median_property_value,
-    CAST(M.median_income AS DECIMAL(12,2)) AS median_income
-FROM (
+;WITH Clean_Regions AS (
     SELECT
-        R.Region_Clean,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY R.property_value)
-            OVER (PARTITION BY R.Region_Clean) AS median_property_value,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY R.income)
-            OVER (PARTITION BY R.Region_Clean) AS median_income
-    FROM (
-        SELECT
-            CASE
-                WHEN LOWER(TRIM(Region)) = 'north-east' THEN 'North-East'
-                WHEN Region IS NULL THEN NULL
-                ELSE UPPER(LEFT(TRIM(Region), 1))
-                   + LOWER(SUBSTRING(TRIM(Region), 2, LEN(TRIM(Region))))
-            END AS Region_Clean,
-            property_value,
-            income
-        FROM dbo.Raw_LoanData
-    ) R
-    WHERE R.Region_Clean IS NOT NULL
-) M
-ORDER BY M.Region_Clean;
+        CASE
+            WHEN LOWER(TRIM(Region)) = 'north-east' THEN 'North-East'
+            WHEN Region IS NULL THEN NULL
+            ELSE UPPER(LEFT(TRIM(Region), 1))
+               + LOWER(SUBSTRING(TRIM(Region), 2, LEN(TRIM(Region))))
+        END AS Region_Clean,
+        property_value,
+        income
+    FROM dbo.Raw_LoanData
+)
+SELECT DISTINCT
+    Region_Clean,
+
+    CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY property_value)
+        OVER (PARTITION BY Region_Clean) AS DECIMAL(12,2)) AS median_property_value,
+
+    CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY income)
+        OVER (PARTITION BY Region_Clean) AS DECIMAL(12,2)) AS median_income
+
+FROM Clean_Regions
+WHERE Region_Clean IS NOT NULL
+ORDER BY Region_Clean;
+
 
 
 -- ============================================================
