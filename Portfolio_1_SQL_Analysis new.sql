@@ -114,6 +114,28 @@ SELECT
 FROM dbo.Raw_LoanData;
 GO
 
+
+
+-- DATA CLEANING TRACKER
+-- Task: List all columns and their data types.
+-- (See what kind of information each column stores.)
+
+SELECT
+    ORDINAL_POSITION AS Column_Number,
+    COLUMN_NAME AS Column_Name,
+    DATA_TYPE AS Data_Type,
+    CHARACTER_MAXIMUM_LENGTH AS Max_Length,
+    IS_NULLABLE AS Allows_NULL
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'dbo'
+  AND TABLE_NAME = 'Raw_LoanData'
+ORDER BY ORDINAL_POSITION;
+--Metadata = Information about your data
+
+
+
+
+
 -- ============================================================
 -- PHASE 2: DATA CLEANING
 -- 2.1 — INITIAL DATA QUALITY AUDIT
@@ -125,6 +147,7 @@ GO
 -- how many records are affected, and what percentage
 -- of the portfolio is missing information?
 -- ============================================================
+
 
 SELECT
     COUNT(*) AS Total_Rows,
@@ -893,12 +916,10 @@ FROM dbo.Clean_LoanData;
 
 SELECT
     CAST(
-        SUM(
-            CASE
-                WHEN Status = 1 THEN CAST(loan_amount AS BIGINT)
-                ELSE 0
-            END
-        ) AS BIGINT
+        SUM(CASE
+            WHEN Status = 1 THEN CAST(loan_amount AS BIGINT)
+            ELSE 0
+            END) AS BIGINT
     ) AS Total_Loss_Exposure
 FROM dbo.Clean_LoanData;
 
@@ -975,6 +996,7 @@ SELECT
 FROM dbo.Clean_LoanData;
 
 
+
 -- ============================================================
 -- END OF PART 3
 -- ============================================================
@@ -1004,6 +1026,30 @@ FROM dbo.Clean_LoanData;
 
    METHOD:
    GROUP BY + CASE + Window Functions + Simple CTEs
+
+H1 — Credit Score Model Integrity
+
+Question: Does a higher credit score actually mean a borrower is less likely to default?
+
+Example: If borrowers with scores of 800 default just as often as borrowers with scores of 550, the credit scoring model may not be distinguishing risk effectively.
+
+: Are borrowers with good credit scores really safer for the bank?
+
+H2 — Regional Interest Rate Mispricing
+
+Question: Are some regions being charged lower interest rates despite having higher default rates?
+
+Example: South has a 3% average interest rate but a 30% default rate, while North has a 5% interest rate but only a 15% default rate.
+
+: Is the bank charging less money in places where borrowers are more likely to default?
+
+H3 — Hidden Stress Exposure
+
+Question: Are borrowers with high LTV ratios and low incomes more likely to default?
+
+Example: A borrower earning $3,000 with a 95% LTV may be more financially vulnerable than a borrower earning $8,000 with a 50% LTV.
+
+: Are people who earn less and borrow almost the entire house price more likely to struggle?
    ============================================================ */
 
 USE BankLoanCreditRisk;
@@ -1054,9 +1100,7 @@ SELECT
     total_loans,
     defaults,
     default_rate_pct,
-    ROW_NUMBER() OVER (
-        ORDER BY default_rate_pct DESC
-    ) AS risk_rank
+    ROW_NUMBER() OVER (ORDER BY default_rate_pct DESC) AS risk_rank
 FROM (
     SELECT
         credit_score_band,
@@ -1067,6 +1111,37 @@ FROM (
     FROM dbo.Clean_LoanData
     GROUP BY credit_score_band
 ) AS ScoreBands;
+
+--ALT
+-- 4.2 — WINDOW-RANKED SCORE BANDS
+-- Task: Rank credit-score bands by default rate.
+-- Business Question:
+-- Which credit-score bands have the highest default rates,
+-- ranked from highest to lowest?
+
+;WITH ScoreBands AS (
+    SELECT
+        credit_score_band,
+        COUNT(*) AS total_loans,
+        SUM(Status) AS defaults,
+        CAST(AVG(CAST(Status AS DECIMAL(5,2))) * 100
+            AS DECIMAL(5,2)) AS default_rate_pct
+    FROM dbo.Clean_LoanData
+    GROUP BY credit_score_band
+)
+
+SELECT
+    credit_score_band,
+    total_loans,
+    defaults,
+    default_rate_pct,
+    ROW_NUMBER() OVER (ORDER BY default_rate_pct DESC) AS risk_rank
+FROM ScoreBands;
+
+
+
+
+
 
 
 -- ============================================================
@@ -1091,7 +1166,7 @@ SELECT
     MAX(default_rate_pct) AS highest_default_rate,
     MAX(default_rate_pct) - MIN(default_rate_pct) AS spread,
     CAST(AVG(default_rate_pct) AS DECIMAL(5,2)) AS avg_across_bands,
-    CAST(STDEV(default_rate_pct) AS DECIMAL(5,2)) AS std_dev
+    CAST(STDEV(default_rate_pct) AS DECIMAL(5,2)) AS std_dev_default
 FROM BandRates;
 
 
